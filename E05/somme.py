@@ -1,20 +1,16 @@
 import numpy as np
 import time
 
-def somma(n):
-    for i in range(n):
-        n += i
-    return n
-
 def sommang(n):
     return (n + 1) * (n / 2) # usa la formula, più rapido e tempi consistenti
+
+def sommaRad(n):    # l'approssimazione alla forma integrale si discosta dello 0.5% sopra 150
+    if n < 150:
+        m = np.sum(np.sqrt(np.arange(1,n+1)))
+    else:
+        m = (2/3) * (n**1.5)
+    return m
     
 i = int(input())
 
-t = time.time()
-a = somma(i)
-print(a, time.time() - t)
-
-t = time.time()
-a = sommang(i)
-print(a, time.time() - t)
+print(sommaRad(i))
