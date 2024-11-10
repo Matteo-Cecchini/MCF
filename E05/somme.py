@@ -4,11 +4,10 @@ import time
 def somma(n):
     for i in range(n):
         n += i
-    return a
+    return n
 
 def sommang(n):
-    a = np.array(1,n)
-    return np.sum(a)
+    return (n + 1) * (n / 2) # usa la formula, più rapido e tempi consistenti
     
 i = int(input())
 
