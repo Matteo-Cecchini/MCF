@@ -4,7 +4,11 @@ import time
 def sommang(n):
     return (n + 1) * (n / 2) # usa la formula, più rapido e tempi consistenti
 
-def sommaRad(n):    # l'approssimazione alla forma integrale si discosta dello 0.5% sopra 150
+def sommaRad(n):    # costa più memoria, ma ha tempi consistenti e inferiori sui grandi numeri
+    m = np.sqrt(np.arange(1, n + 1))
+    return np.sum(m)
+
+def sommaRadApprox(n):    # l'approssimazione alla forma scende di imprecisione sotto lo 0.5% sopra il 150
     if n < 150:
         m = np.sum(np.sqrt(np.arange(1,n+1)))
     else:
@@ -13,4 +17,8 @@ def sommaRad(n):    # l'approssimazione alla forma integrale si discosta dello 0
     
 i = int(input())
 
-print(sommaRad(i))
+t = time.time()
+print(sommaRad(i), time.time() - t)
+
+t = time.time()
+print(sommaRadApprox(i), time.time() - t)
