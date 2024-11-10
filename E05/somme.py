@@ -14,11 +14,3 @@ def sommaRadApprox(n):    # l'approssimazione alla forma scende di imprecisione 
     else:
         m = (2/3) * (n**1.5)
     return m
-    
-i = int(input())
-
-t = time.time()
-print(sommaRad(i), time.time() - t)
-
-t = time.time()
-print(sommaRadApprox(i), time.time() - t)
