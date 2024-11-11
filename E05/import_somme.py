@@ -1,7 +1,7 @@
 import somme
 
 a = int(input())
-b = somme.sommang(a)
+b = somme.somma(a)
 print(b)
 
 c = somme.sommaRad(a)
@@ -12,3 +12,5 @@ print(d)
 
 e = somme.sumPow(a, 0)
 print(e)
+
+print(somme.somma.__doc__)
