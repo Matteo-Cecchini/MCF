@@ -10,7 +10,7 @@ def fibo(n):
             fib, fob = fib + fob, fib
     return fib/fob
 
-n = 1e6
+n = 5000
 
 t = time.time()
 a = serie.fibonacci(n)

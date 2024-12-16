@@ -7,4 +7,6 @@ _lib.read_camera.argtypes = [ctypes.c_char_p]
 _lib.read_camera.restype = ctypes.c_int
 
 class myCamera:
-    imag = np.array()
+    imag = np.array([])
+    
+    def read_camera(self):
