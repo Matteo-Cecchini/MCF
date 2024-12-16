@@ -10,13 +10,13 @@ def fibo(n):
             fib, fob = fib + fob, fib
     return fib/fob
 
-n = 10000
+n = 1e6
 
 t = time.time()
 a = serie.fibonacci(n)
 t1 = time.time() - t
 t = time.time()
-b = fibo(n)
+b = fibo(int(n))
 t2 = time.time() - t
 print(a, t1)
 print(b, t2)
