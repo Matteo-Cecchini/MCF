@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 import ctypes as ct
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from scipy.fft import fft, ifft, fftfreq
+from scipy.stats import norm
 import multiprocessing
 from time import time
 
@@ -394,7 +396,7 @@ class Datasheet:
         sp.set_ylabel("Potenza")
         plt.show()    
 
-    def plot_analysis(self, sigmas: float|int = 3.9, see_shuffle = False, timeformat: str = None):
+    def plot_analysis(self, sigmas: float|int = 3.9, timeformat: str = "", see_shuffle = False):
         if len(self.significativity) == 0:
             self.shuffle_analysis(sigmas=sigmas, inplace=True)
         if self.frequencies.size == 0:
@@ -403,18 +405,33 @@ class Datasheet:
         cut = len(self.timedata) // 2
         line = np.absolute(self.significativity["mean"] + sigmas*self.significativity["std"])
         indexes = [i for i in self.significativity["indexes"] if i < cut] # assumo che siano simmetrici i coefficienti
+        sig_freq, sig_pows = self.frequencies[indexes], np.absolute(self.coefficients[indexes])**2
         
-        fig = plt.figure(figsize=(10,6))
+        perc = norm.cdf(sigmas)*100
+        
+        fig = plt.figure(figsize=(13,6))
         gs = fig.add_gridspec(1,2)
         ps, sn = gs.subplots()
-        ps.plot(self.frequencies[indexes], np.absolute(self.coefficients[indexes])**2,
-                ".", lw=1, label=f"> {sigmas} std")
+        ps.plot(sig_freq, sig_pows, ".", lw=1, label=f"picchi con significatività oltre {round(perc,3)}%")
         ps.plot(self.frequencies[:cut], np.absolute(self.coefficients[:cut])**2, 
                 lw=1, color="gray", alpha=.5, label="tutti i dati")
         ps.hlines(np.absolute(self.significativity["mean"]), 0, np.max(self.frequencies[:cut]), 
                   linestyles="dashed", alpha=.25, label="media degli shuffle")
         ps.hlines(line, 0, np.max(self.frequencies[:cut]), 
-                  color="#1f77b4", alpha=.4, label=f"{sigmas} oltre la media")
+                  color="#1f77b4", alpha=.4, label=f"media + {round(sigmas,3)} deviazioni")
+        
+        ps.vlines(sig_freq, ymin=np.zeros(len(indexes)), ymax=sig_pows, color="gray", 
+                  linestyles="dashed", alpha=.25)
+        
+        for i in range(len(indexes)):
+            ps.annotate("{:.2e}".format(sig_freq[i]), 
+                xy=(sig_freq[i], sig_pows[i]), 
+                xytext=(5, 5), textcoords="offset points", ha="left", va="bottom",
+                fontsize=8, color="black", fontweight='light')
+        
+        a = self.frequencies[1] - self.frequencies[0]
+        ps.set_xlim(np.min(sig_freq) - a, np.max(sig_freq) + a)
+        
         ps.set_title("Spettro di potenza dei coefficienti")
         ps.set_xlabel("Frequenza [Hz]")
         ps.set_ylabel("Potenza")
@@ -441,14 +458,16 @@ class Datasheet:
         sn.errorbar(timedata[notmask], self.fluxdata[notmask], self.sigmadata[notmask], 
                      fmt=".", elinewidth=1, ecolor="gray", label="Detection")
         sn.plot(timedata[notmask], self.fluxdata[notmask], lw=1, color="gray", alpha=.5)
-        sn.plot(timedata, yy, lw=1, color="plum", label=f"sintesi picchi oltre {sigmas} std")
+        sn.plot(timedata, yy, lw=1, color="plum", label=f"sintesi picchi significativi oltre {perc.round(2)}%")
         if see_shuffle:
             sn.plot(timedata, self.significativity["data"], lw=1, color="#1f77b4", alpha=.5, label="media curve sintetiche")
             
         sn.set_xlabel(timelabel)
         sn.set_ylabel(self.nameofdata[1])
-        sn.set_title("Plot dati con sintesi su pichci significativi")
+        sn.set_title(f"Plot dati con sintesi su picchi significativi oltre {round(perc,3)}%")
         sn.legend()
+        
+        plt.tight_layout()
         plt.show()
 
 def read_csv(from_data: str|int, path: str):

@@ -5,15 +5,13 @@ from scipy.stats import norm
 import LCRanalysis as LCR
 
 def load_data(filepath):
-
     data = LCR.read_csv("lcr", filepath)
     return data
 
-def analyze_periodicity(data, num_shuffles=100):
+def analyze_periodicity(data: LCR.Datasheet, sigmas = 3.9, num_shuffles=100):
     """Effettua l'analisi di Fourier e verifica la periodicità."""
     data.FFT(inplace=True)
-    data.shuffle_analysis(n=num_shuffles, inplace=True)
-    return data
+    data.shuffle_analysis(n=num_shuffles, sigmas=sigmas, inplace=True)
 
 def plot_results(data: LCR.Datasheet, choice, sigmas, timeformat):
     """Genera i grafici della curva di luce e spettro di potenza."""
@@ -27,9 +25,6 @@ def plot_results(data: LCR.Datasheet, choice, sigmas, timeformat):
         data.plot_data(timeformat)
     elif choice == "apectrum":
         data.plot_spectrum(see_parts=True)
-        
-def show_periodicities(data: LCR.Datasheet, filename):
-    dic = data.significativity
 
 def main():
     parser = argparse.ArgumentParser(description="Analisi di periodicità delle curve di luce dei Blazar")
@@ -46,15 +41,13 @@ def main():
     choice = args.plot
     
     if args.percentage is not None:
-        print("check")
-        args.sigmas = norm.ppf(args.percentage)
+        args.sigmas = norm.ppf(args.percentage / 100)
     
-    analyze_periodicity(data, num_shuffles=args.shuffles)
+    analyze_periodicity(data, sigmas=args.sigmas, num_shuffles=args.shuffles)
     
-    if args.timeformat.lower() in ("met", "mission elapsed time"):
+    if args.timeformat is not None and args.timeformat.lower() in ("met", "mission elapsed time"):
         args.timeformat == "met"
         
-    print(data.significativity)
     plot_results(data, choice, args.sigmas, args.timeformat)
        
 
