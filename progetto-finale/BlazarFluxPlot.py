@@ -27,6 +27,9 @@ def plot_results(data: LCR.Datasheet, choice, sigmas, timeformat):
         data.plot_data(timeformat)
     elif choice == "apectrum":
         data.plot_spectrum(see_parts=True)
+        
+def show_periodicities(data: LCR.Datasheet, filename):
+    dic = data.significativity
 
 def main():
     parser = argparse.ArgumentParser(description="Analisi di periodicità delle curve di luce dei Blazar")

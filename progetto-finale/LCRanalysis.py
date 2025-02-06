@@ -151,7 +151,6 @@ class Datasheet:
             print("Immissione di array di dimensioni non compatibili")
         self.nameofdata = names if names is not None else ["Time", "Data", "Sigma"]
         self.csvformat = csvformat
-        # mantengo solo le colonne per l'analisi, estendibile a utilizzi più generici in futuro
         
     def __getitem__(self, index):
         '''
