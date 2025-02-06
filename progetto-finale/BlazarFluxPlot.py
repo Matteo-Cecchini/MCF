@@ -1,20 +1,59 @@
-import matplotlib.pyplot as plt
-import numpy as np
+import argparse
 import pandas as pd
-from LAT import LATdatasheet
-import LAT
-from scipy.fft import rfft, irfft, rfftfreq
+import numpy as np
+from scipy.stats import norm
+import LCRanalysis as LCR
 
+def load_data(filepath):
 
-wdfs = LAT.read_csv("weekly/4FGL_J0137.0+4751_weekly_12_27_2024.csv")
-mdfs = LAT.read_csv("monthly/4FGL_J0137.0+4751_monthly_12_27_2024.csv")
+    data = LCR.read_csv("lcr", filepath)
+    return data
 
-used_cols = ["Julian Date", "Energy Flux [0.1-100 GeV](MeV cm-2 s-1)"]
+def analyze_periodicity(data, num_shuffles=100):
+    """Effettua l'analisi di Fourier e verifica la periodicità."""
+    data.FFT(inplace=True)
+    data.shuffle_analysis(n=num_shuffles, inplace=True)
+    return data
 
-a = wdfs[used_cols]
-a = a.to_numeric()
-a.wf_plot(c="r")
-print(a)
-a = a.fft_analysis()
-a.ps_plot()
-print(a)
+def plot_results(data: LCR.Datasheet, choice, sigmas, timeformat):
+    """Genera i grafici della curva di luce e spettro di potenza."""
+    if choice == "analysis":
+        data.plot_analysis(sigmas=sigmas)
+    elif choice == "all":
+        data.plot_data(timeformat)
+        data.plot_spectrum(see_parts=True)
+        data.plot_analysis(sigmas=sigmas, see_shuffle=True, timeformat=timeformat)
+    elif choice == "data":
+        data.plot_data(timeformat)
+    elif choice == "apectrum":
+        data.plot_spectrum(see_parts=True)
+
+def main():
+    parser = argparse.ArgumentParser(description="Analisi di periodicità delle curve di luce dei Blazar")
+    parser.add_argument("filepath", type=str, help="Percorso del file CSV della curva di luce")
+    parser.add_argument("-p", "--plot", choices=["all", "data", "spectrum", "analysis"], default="analysis", help="Scelta del tipo di plot")
+    parser.add_argument("-n", "--shuffles", type=int, default=1000, help="Numero di curve di luce sintetiche")
+    parser.add_argument("-s", "--sigmas", type=float, default=3.9, help="Soglia per la significatività del picco in deviazioni")
+    parser.add_argument("-c", "--percentage", type=float, help="Soglia per la significatività del picco in percentuale")
+    parser.add_argument("-t", "--timeformat", choices=["JD", "Julian Date", "MET", "Mission Elapsed Time"], 
+                        default="JD", help="Scelta del formato data, Julian Date o MET")
+    
+    args = parser.parse_args()
+    data = load_data(args.filepath)
+    choice = args.plot
+    
+    if args.percentage is not None:
+        print("check")
+        args.sigmas = norm.ppf(args.percentage)
+    
+    analyze_periodicity(data, num_shuffles=args.shuffles)
+    
+    if args.timeformat.lower() in ("met", "mission elapsed time"):
+        args.timeformat == "met"
+        
+    print(data.significativity)
+    plot_results(data, choice, args.sigmas, args.timeformat)
+       
+
+if __name__ == "__main__":
+    main()
