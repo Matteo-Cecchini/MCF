@@ -2,11 +2,8 @@ import pandas as pd
 import numpy as np
 import ctypes as ct
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 from scipy.fft import fft, ifft, fftfreq
 from scipy.stats import norm
-import multiprocessing
-from time import time
 
 _lib = np.ctypeslib.load_library("prova.so", ".")
 
@@ -65,6 +62,7 @@ def shuffle_analysis(arr, n: int = 100, sigmas: float = 3.9, is_raw: bool = Fals
                          di deviazioni dalla media di "data".
             - "mean": la media di tutti i coefficienti in "data".
             - "std": la deviazione standard di tutti i coefficienti in "data".
+            - "len": la lunghezza dell'array immesso, utile per non dover richiamare l'array per la sintesi
             
     Struttura e funzionamento:
         L'approccio della funzione è quello di stabilire un livello di significatività per la periodicità
@@ -86,7 +84,7 @@ def shuffle_analysis(arr, n: int = 100, sigmas: float = 3.9, is_raw: bool = Fals
     '''
     if is_raw:
         arr = fft(arr)
-    # apparentemente lo shuffle della potenza dei coefficienti ha lo stesso risultato di fare lo shuffle dei dati prima
+    # lo shuffle della potenza dei coefficienti è uguale allo shuffle dei dati
     data = np.zeros(len(arr))
     powers = np.absolute(arr)**2
     shuffle_dummy = powers.copy()
@@ -97,7 +95,7 @@ def shuffle_analysis(arr, n: int = 100, sigmas: float = 3.9, is_raw: bool = Fals
     data /= n
     mean, std = np.mean(data), np.std(data)
     indexes = np.where(powers > mean + sigmas*std)[0]
-    return {"data":data, "indexes":indexes, "mean":mean, "std":std}
+    return {"data":data, "indexes":indexes, "mean":mean, "std":std, "len":len(arr)}
 
 
 class Datasheet:
@@ -153,7 +151,7 @@ class Datasheet:
             print("Immissione di array di dimensioni non compatibili")
         self.nameofdata = names if names is not None else ["Time", "Data", "Sigma"]
         self.csvformat = csvformat
-        
+    
     def __getitem__(self, index):
         '''
         Restituisce l'elemento corrispondente all'indice specificato.
@@ -172,7 +170,7 @@ class Datasheet:
         except IndexError:
             # non ho capito se l'erorre è gestito correttamente
             raise IndexError(f"IndexError: index {index} is out of bounds for axis 0 with size {len(self.nameofdata)}")                  
-        
+    
     def __str__(self):
         '''
         Restituisce una rappresentazione testuale formattata dell'oggetto.
@@ -204,7 +202,7 @@ class Datasheet:
         return Datasheet(df,
                          names=self.nameofdata.copy(),
                          **self.csvcsvformat.copy())
-        
+    
     @property
     def dtypes(self):
         '''
@@ -217,7 +215,7 @@ class Datasheet:
                                     (type(self.timedata[0]),
                                      type(self.fluxdata[0]),
                                      type(self.sigmadata[0]))) }
-        
+    
     @property
     def shape(self):
         '''
@@ -280,7 +278,6 @@ class Datasheet:
         "FFT coefficients" e "Coeff. sigmas". Se "inplace" è True, l'oggetto viene modificato direttamente.
         '''
         df = self if inplace else self.copy()
-        print(any(i != np.float64 for i in df.dtypes.values()))
         if any(i != np.float64 for i in df.dtypes.values()):
             try:
                 df.convert_to_numeric(inplace=True)
@@ -293,7 +290,7 @@ class Datasheet:
         df.frequencies = fftfreq(len(df.coefficients), d=(df.timedata[1] - df.timedata[0]))
         if not inplace:
             return df
-            
+    
     def shuffle_analysis(self, n: int = 100, sigmas=3.9, inplace = False):
         '''
         Esegue un'analisi statistica sui dati o sui relativi coefficienti FFT per valutare la significatività
@@ -345,21 +342,23 @@ class Datasheet:
                 timedata = 86400*(self.timedata - self.timedata[0]) + self.csvformat["MET0"]
             else:
                 timelabel = self.nameofdata[0]
-                timedata = self.timedata
+                timedata = self.timedata 
+        
+        fig, ax = plt.subplots(1,1)
         
         if self.limitmask is not None:
             notmask = ~self.limitmask
-            plt.scatter(timedata[self.limitmask], self.fluxdata[self.limitmask], marker="v", label="Upper Limit")
+            ax.scatter(timedata[self.limitmask], self.fluxdata[self.limitmask], marker="v", label="Upper Limit")
         else:
             notmask = np.full(self.timedata.shape, True)
-            plt.title("nota: non c'è distinzione tra rilevamenti e limiti superiori")
+            ax.set_title("nota: non c'è distinzione tra rilevamenti e limiti superiori")
         
-        plt.errorbar(timedata[notmask], self.fluxdata[notmask], self.sigmadata[notmask], 
+        ax.errorbar(timedata[notmask], self.fluxdata[notmask], self.sigmadata[notmask], 
                      fmt=".", elinewidth=1, ecolor="gray", label="Detection")
-        plt.plot(timedata[notmask], self.fluxdata[notmask], lw=1, color="gray", alpha=.5)
-        plt.xlabel(timelabel)
-        plt.ylabel(self.nameofdata[1])
-        plt.legend()
+        ax.plot(timedata[notmask], self.fluxdata[notmask], lw=1, color="gray", alpha=.5)
+        ax.set_xlabel(timelabel)
+        ax.set_ylabel(self.nameofdata[1])
+        ax.legend()
         plt.tight_layout()
         plt.show()
 
@@ -394,6 +393,7 @@ class Datasheet:
         sp.set_title("Spettro di potenza dei coefficienti")
         sp.set_xlabel("Frequenza [Hz]")
         sp.set_ylabel("Potenza")
+        
         plt.show()    
 
     def plot_analysis(self, sigmas: float|int = 3.9, timeformat: str = "", see_shuffle = False):
@@ -441,7 +441,6 @@ class Datasheet:
         cc[indexes] = self.coefficients[indexes]
         yy = np.absolute(ifft(cc))
         
-        # perché ho fatto così?
         if self.csvformat["name"].lower() == "lcr" and timeformat.lower() in ("met", "mission elapsed time"):
             timelabel = "Mission Elapsed Time (MET)"
             timedata = 86400*(self.timedata - self.timedata[0]) + self.csvformat["MET0"]
