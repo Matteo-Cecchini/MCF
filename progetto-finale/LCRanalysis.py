@@ -42,74 +42,31 @@ def to_numeric(arr):
         print(f"Conversione dei dati immessi fallita: {e}")
     return res
 
-def shuffle_analysis(arr, n: int = 100, sigmas: float = 3.9, is_raw: bool = False):
-    '''
-    Effettua un'analisi di significatività statistica delle periodicità di un campione di dati
-    attraverso lo shuffling dei dati.
-    ---------------
-    Parametri:
-        - arr : i dati di cui fare l'analisi.
-        - n: numero di shuffling da fare.
-        - sigmas: numero di deviazioni dalla media dei valori degli shuffle ottenuti.
-        - is_raw: gestisce la situazione nel caso in cui si passi alla funzione non l'array dei coefficienti
-                della trasformata di Fourier ma i dati in funzione del tempo.
-                
-    Return:
-        Un dizionario con la seguente struttura:
-            - "data": un array 1-D con la stessa lunghezza dell'array immesso, con la somma di tutti
-                      i coefficienti ottenuti per shuffle ad ogni indice mediati sul numero di shuffle effettuati.
-            - "indexes": un array con gli indici di tutti i coefficienti di Fourier la cui potenza supera il numero
-                         di deviazioni dalla media di "data".
-            - "mean": la media di tutti i coefficienti in "data".
-            - "std": la deviazione standard di tutti i coefficienti in "data".
-            - "len": la lunghezza dell'array immesso, utile per non dover richiamare l'array per la sintesi
-            
-    Struttura e funzionamento:
-        L'approccio della funzione è quello di stabilire un livello di significatività per la periodicità
-        di tutti i coefficienti immessi (o dei coefficienti relativi ai dati immessi) rimescolando i dati;
-        in questo modo si rompono tutti i legami temporali, mantenendo il rumore perchè per definizione
-        non associato ad un'informazione.
-        
-        Piuttosto che salvare in memoria n array di shuffle, ogni volta viene sommato il nuovo shuffle ad un array
-        di zeri generato apposta, ed infine viene mediata ogni somma per il numero di iterazioni n.
-        Ogni indice di quello che era l'array di zeri è quindi la media delle potenze dei coefficienti di n shuffle
-        delle potenze originali.
-        
-        La funzione effettua lo shuffle sulle potenze dei coefficienti anziché sui dati originali per motivi di 
-        efficienza, in quanto np.random.shuffle ha complessità O(n), mentre eseguire la FFT sui dati originali 
-        comporterebbe una complessità O(n log n) per ogni iterazione. Inoltre, matematicamente, la permutazione 
-        delle potenze dei coefficienti non altera l'informazione temporale: l'argomento dell'esponenziale complesso 
-        nella trasformata di Fourier dipende dal tempo, ma nelle potenze dei coefficienti ogni fase è uguale a 1, 
-        quindi ogni permutazione di $x(t)$ corrisponde a una permutazione analoga di $|X(t)|^2$.       
-    '''
-    if is_raw:
-        arr = fft(arr)
-    # lo shuffle della potenza dei coefficienti è uguale allo shuffle dei dati
-    data = np.zeros(len(arr))
-    powers = np.absolute(arr)**2
-    shuffle_dummy = powers.copy()
-    # migliorare il loop se possibile
-    for i in range(n):
-        np.random.shuffle(shuffle_dummy)
-        data += shuffle_dummy
-    data /= n
-    mean, std = np.mean(data), np.std(data)
-    indexes = np.where(powers > mean + sigmas*std)[0]
-    return {"data":data, "indexes":indexes, "mean":mean, "std":std, "len":len(arr)}
+def shuffle_analysis(signal, shuffles = 100, percentile = 95):
+    dummy = signal.copy()
+    maxs = np.zeros(shuffles) # maxs o maxes?
+    
+    for i in range(shuffles):
+        dummy = np.random.permutation(signal)
+        maxs[i] = max(np.abs(fft(dummy)[1:])**2) # il primo coefficiente è l'offset
+    
+    treshold = np.percentile(maxs, percentile)
+    indexes = np.where(np.abs(fft(signal))**2 > treshold)[0]
+    return {"treshold":treshold, "percentile":percentile, "indexes":indexes} 
 
 
 class Datasheet:
     # array presi dal csv di analisi
     timedata = np.array([])
     fluxdata = np.array([])
-    sigmadata = np.array([])
     # array dell'analisi
     frequencies = np.array([])
     coefficients = np.array([])
-    coeff_sigmas = np.array([])
     significativity = {}
     # array per il plot
     limitmask = np.array([])
+    sigmadata = np.array([])
+    # gestione
     nameofdata = list
     csvformat = {}
     
@@ -162,8 +119,7 @@ class Datasheet:
                           self.fluxdata, 
                           self.sigmadata, 
                           self.frequencies, 
-                          self.coefficients, 
-                          self.coeff_sigmas]
+                          self.coefficients]
         items = np.vstack(allitems[:len(self.nameofdata)])
         try:
             return items[index]
@@ -201,7 +157,7 @@ class Datasheet:
         df = self[:].copy()
         return Datasheet(df,
                          names=self.nameofdata.copy(),
-                         **self.csvcsvformat.copy())
+                         **self.csvformat.copy())
     
     @property
     def dtypes(self):
@@ -285,13 +241,12 @@ class Datasheet:
                 print(f"Impossibile effettuare l'analisi: {e}")
         df.nameofdata += ["Frequencies", "FFT coefficients", "Coeff. sigmas"]
         df.coefficients = fft(self.fluxdata)
-        df.coeff_sigmas = fft(self.sigmadata)
         # assunzione di array temporale scandito uniformemente
         df.frequencies = fftfreq(len(df.coefficients), d=(df.timedata[1] - df.timedata[0]))
         if not inplace:
             return df
     
-    def shuffle_analysis(self, n: int = 100, sigmas=3.9, inplace = False):
+    def shuffle_analysis(self, shuffles = 100, percentile = 95, inplace = False):
         '''
         Esegue un'analisi statistica sui dati o sui relativi coefficienti FFT per valutare la significatività
         periodica di ogni elemento dello studio in frequenza.
@@ -321,10 +276,7 @@ class Datasheet:
             except Exception as e:
                 print(f"Impossibile effettuare l'analisi: {e}")
         
-        if "FFT coefficients" not in df.nameofdata:
-            df.significativity = shuffle_analysis(df.fluxdata, n, sigmas=sigmas, is_raw=True)
-        else:
-            df.significativity = shuffle_analysis(df.coefficients, n, sigmas=sigmas, is_raw=False)
+        df.significativity = shuffle_analysis(df.fluxdata, shuffles=shuffles, percentile=percentile)
             
         if not inplace:
             return df
@@ -363,12 +315,13 @@ class Datasheet:
         plt.show()
 
     def plot_spectrum(self, see_parts = False):
-        if "Frequencies" not in self.nameofdata:
+        if self.frequencies.size == 0 or self.coefficients.size == 0:
             self.FFT(inplace=True)
         
         cut = len(self.frequencies) // 2
-        coeff_power = np.absolute(self.coefficients[:cut])**2
-        coeff_power_err = np.absolute(2*self.coefficients[:cut]*self.coeff_sigmas[:cut]) # stima degli errori delle potenze dei coefficienti
+        frequencies = self.frequencies[:cut]
+        coefficients = self.coefficients[:cut]
+        powers = np.absolute(coefficients)**2
         
         fig = plt.figure()
         if see_parts:
@@ -376,49 +329,43 @@ class Datasheet:
             g2 = fig.add_gridspec(2,1, left=.55, right=.9)
             
             re, im = g2.subplots(sharex=True, sharey=True)
-            re.plot(self.frequencies[:cut], self.coefficients.real[:cut], color="gray", lw=1)
-            im.plot(self.frequencies[:cut], self.coefficients.imag[:cut], color="gray", lw=1)
-            re.errorbar(self.frequencies[:cut], self.coefficients.real[:cut], np.absolute(self.coeff_sigmas.real[:cut]), 
+            re.plot(frequencies, coefficients.real, color="gray", lw=1)
+            im.plot(frequencies, coefficients.imag, color="gray", lw=1)
+            re.errorbar(frequencies, coefficients.real, 
                      fmt=".", elinewidth=1, ecolor="gray", label="Parte reale")
-            im.errorbar(self.frequencies[:cut], self.coefficients.imag[:cut], np.absolute(self.coeff_sigmas.imag[:cut]), 
+            im.errorbar(frequencies, coefficients.imag, 
                      fmt=".", elinewidth=1, ecolor="gray", label="Parte immaginaria")
             im.set_xlabel("Frequenza [Hz]")
             re.set_title("Parti reale e immaginaria dei coefficienti")
         else:
             g1 = fig.add_gridspec(1,1)
         sp = g1.subplots()
-        sp.errorbar(self.frequencies[:cut], coeff_power, coeff_power_err, 
-                     fmt=".", elinewidth=1, ecolor="gray")
-        sp.plot(self.frequencies[:cut], coeff_power, lw=1, color="gray", alpha=.5)
+        sp.plot(frequencies, powers, fmt=".", elinewidth=1, ecolor="gray")
+        sp.plot(frequencies, powers, lw=1, color="gray", alpha=.5)
         sp.set_title("Spettro di potenza dei coefficienti")
         sp.set_xlabel("Frequenza [Hz]")
         sp.set_ylabel("Potenza")
-        
         plt.show()    
 
-    def plot_analysis(self, sigmas: float|int = 3.9, timeformat: str = "", see_shuffle = False):
+    def plot_analysis(self, shuffles = 100, percentile = 95, timeformat: str = ""):
         if len(self.significativity) == 0:
-            self.shuffle_analysis(sigmas=sigmas, inplace=True)
+            self.shuffle_analysis(shuffles=shuffles, percentile=percentile, inplace=True)
         if self.frequencies.size == 0:
             self.FFT(True)
         
         cut = len(self.timedata) // 2
-        line = np.absolute(self.significativity["mean"] + sigmas*self.significativity["std"])
+        line = self.significativity["treshold"]
         indexes = [i for i in self.significativity["indexes"] if i < cut] # assumo che siano simmetrici i coefficienti
         sig_freq, sig_pows = self.frequencies[indexes], np.absolute(self.coefficients[indexes])**2
-        
-        perc = norm.cdf(sigmas)*100
-        
+                
         fig = plt.figure(figsize=(13,6))
         gs = fig.add_gridspec(1,2)
         ps, sn = gs.subplots()
-        ps.plot(sig_freq, sig_pows, ".", lw=1, label=f"picchi con significatività oltre {round(perc,3)}%")
+        ps.plot(sig_freq, sig_pows, ".", lw=1, label=f"picchi con significatività oltre {round(percentile,3)}%")
         ps.plot(self.frequencies[:cut], np.absolute(self.coefficients[:cut])**2, 
                 lw=1, color="gray", alpha=.5, label="tutti i dati")
-        ps.hlines(np.absolute(self.significativity["mean"]), 0, np.max(self.frequencies[:cut]), 
-                  linestyles="dashed", alpha=.25, label="media degli shuffle")
         ps.hlines(line, 0, np.max(self.frequencies[:cut]), 
-                  color="#1f77b4", alpha=.4, label=f"media + {round(sigmas,3)} deviazioni")
+                  color="#1f77b4", alpha=.4, label=f"Soglia significativa, {shuffles} $\sigma$ $\mul$ {percentile}%")
         
         ps.vlines(sig_freq, ymin=np.zeros(len(indexes)), ymax=sig_pows, color="gray", 
                   linestyles="dashed", alpha=.25)
@@ -429,13 +376,15 @@ class Datasheet:
                 xytext=(5, 5), textcoords="offset points", ha="left", va="bottom",
                 fontsize=8, color="black", fontweight='light')
         
-        a = self.frequencies[1] - self.frequencies[0]
-        ps.set_xlim(np.min(sig_freq) - a, np.max(sig_freq) + a)
-        
+        try:
+            lims = max(self.frequencies[cut - 1], max(sig_freq)) 
+        except:
+            lims = self.frequencies[cut - 1]
+        ps.set_xlim(0, lims)
         ps.set_title("Spettro di potenza dei coefficienti")
         ps.set_xlabel("Frequenza [Hz]")
-        ps.set_ylabel("Potenza")
-        ps.legend()
+        ps.set_ylabel("Potenza (log$_{10}$)")
+        ps.set_yscale("log")
         
         cc = np.zeros(len(self.coefficients), dtype=np.complex128)
         cc[indexes] = self.coefficients[indexes]
@@ -457,13 +406,11 @@ class Datasheet:
         sn.errorbar(timedata[notmask], self.fluxdata[notmask], self.sigmadata[notmask], 
                      fmt=".", elinewidth=1, ecolor="gray", label="Detection")
         sn.plot(timedata[notmask], self.fluxdata[notmask], lw=1, color="gray", alpha=.5)
-        sn.plot(timedata, yy, lw=1, color="plum", label=f"sintesi picchi significativi oltre {perc.round(2)}%")
-        if see_shuffle:
-            sn.plot(timedata, self.significativity["data"], lw=1, color="#1f77b4", alpha=.5, label="media curve sintetiche")
+        sn.plot(timedata, yy, lw=1, color="plum", label=f"Sintesi coefficienti significativi oltre {percentile} %")
             
         sn.set_xlabel(timelabel)
         sn.set_ylabel(self.nameofdata[1])
-        sn.set_title(f"Plot dati con sintesi su picchi significativi oltre {round(perc,3)}%")
+        sn.set_title(f"Plot dati con sintesi coefficienti significativi oltre {percentile}%")
         sn.legend()
         
         plt.tight_layout()

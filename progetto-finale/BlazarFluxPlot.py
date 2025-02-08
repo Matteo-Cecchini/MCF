@@ -11,33 +11,30 @@ def load_data(filepath):
     data = LCR.read_csv("lcr", filepath)
     return data
 
-def analyze_periodicity(data: LCR.Datasheet, sigmas = 3.9, num_shuffles=100):
-    """Effettua l'analisi di Fourier e verifica la periodicità."""
-    data.FFT(inplace=True)
-    data.shuffle_analysis(n=num_shuffles, sigmas=sigmas, inplace=True)
-
-def plot_results(data: LCR.Datasheet, choice, sigmas, timeformat):
+def plot(data: LCR.Datasheet, choice, percentile, shuffles, timeformat):
     """Genera i grafici della curva di luce e spettro di potenza."""
+    data.FFT(inplace=True)
+    data.shuffle_analysis(shuffles=shuffles, percentile=percentile, inplace=True)
     if choice == "analysis":
-        data.plot_analysis(sigmas=sigmas)
+        data.plot_analysis(percentile=percentile)
     elif choice == "all":
         data.plot_data(timeformat)
         data.plot_spectrum(see_parts=True)
-        data.plot_analysis(sigmas=sigmas, see_shuffle=True, timeformat=timeformat)
+        data.plot_analysis(percentile=percentile, timeformat=timeformat)
     elif choice == "data":
         data.plot_data(timeformat)
     elif choice == "spectrum":
         data.plot_spectrum(see_parts=True)
 
-def confront_and_plot(d1: LCR.Datasheet, d2: LCR.Datasheet, n, sigmas, names, timeformat: str = ""):
+def dualplot(d1: LCR.Datasheet, d2: LCR.Datasheet, shuffles, percentile, names, timeformat: str = ""):
     # Controllo che ci sia tutto in d1
     d1.convert_to_numeric(True, True)
     d1.FFT(True)
-    d1.shuffle_analysis(n, sigmas, True)
+    d1.shuffle_analysis(shuffles=shuffles, percentile=percentile, inplace=True)
     
     d2.convert_to_numeric(True, True)
     d2.FFT(True)
-    d2.shuffle_analysis(n, sigmas, True)
+    d2.shuffle_analysis(shuffles=shuffles, percentile=percentile, inplace=True)
     
     # DIstinzione delle lunghezze degli array di frequenza e coefficienti FFT
     cut1 = len(d1.timedata) // 2
@@ -54,8 +51,7 @@ def confront_and_plot(d1: LCR.Datasheet, d2: LCR.Datasheet, n, sigmas, names, ti
     sig_freq_d2 = d2.frequencies[indexes_d2]
     sig_pows_d2 = np.absolute(d2.coefficients[indexes_d2])**2
     
-    # Calcolo il valore percentuale relativo al numero di deviazioni scelto
-    perc = norm.cdf(sigmas)*100
+    # fontsize legende
     fontsize = 7.5
     
     # Definizione figura
@@ -66,14 +62,14 @@ def confront_and_plot(d1: LCR.Datasheet, d2: LCR.Datasheet, n, sigmas, names, ti
     ps, sn = gs.subplots()
     
     # settimanali
-    ps.plot(sig_freq_d1, sig_pows_d1, ".", lw=1, label=f"Picchi sett. significativi d1 oltre {round(perc, 3)}%")
+    ps.plot(sig_freq_d1, sig_pows_d1, ".", lw=1, label=f"Picchi sett. oltre {percentile} % ")
     ps.plot(d1.frequencies[:cut1], np.absolute(d1.coefficients[:cut1])**2, lw=1, color="gray", alpha=.5, label=f"Spettro Potenza {names[0]}")
-    ps.hlines(np.absolute(d1.significativity["mean"] + sigmas*d1.significativity["std"]), 0, np.max(d1.frequencies[:cut1]), color="darkturquoise", alpha=.4, label=f"Media + {round(sigmas, 3)} deviazioni (sett.)", linestyles="dashed")
+    ps.hlines(d1.significativity["treshold"], 0, np.max(d1.frequencies[:cut1]), color="darkturquoise", alpha=.4, label=f"Soglia del {percentile} % sett.")
     
     # mensili
-    ps.plot(sig_freq_d2, sig_pows_d2, ".", lw=1, label=f"Picchi mens. significativi d2 oltre {round(perc, 3)}%")
+    ps.plot(sig_freq_d2, sig_pows_d2, ".", lw=1, label=f"Picchi mens.oltre {percentile} %")
     ps.plot(d2.frequencies[:cut2], np.absolute(d2.coefficients[:cut2])**2, lw=1, color="wheat", alpha=1, label=f"Spettro Potenza {names[1]}")
-    ps.hlines(np.absolute(d2.significativity["mean"] + sigmas*d2.significativity["std"]), 0, np.max(d2.frequencies[:cut2]), color="plum", alpha=.4, label=f"Media + {round(sigmas, 3)} deviazioni (mens.)", linestyles="dashed")
+    ps.hlines(d2.significativity["treshold"], 0, np.max(d2.frequencies[:cut2]), color="plum", alpha=.4, label=f"Soglia del {percentile} % mens.", linestyles="dashed")
     
     # Linee verticali dei coefficienti oltre la soglia di significatività
     '''
@@ -83,11 +79,14 @@ def confront_and_plot(d1: LCR.Datasheet, d2: LCR.Datasheet, n, sigmas, names, ti
         ps.annotate("m {:.2e}".format(sig_freq_d2[i]), xy=(sig_freq_d2[i], sig_pows_d2[i]), xytext=(5, 5), textcoords="offset points", ha="left", va="bottom", fontsize=8, color="black", fontweight='light')
     '''
     # zoom o su tutto l'array delle potenze FFT dei mensili o fino l'ultima potenza significativa dei settimanali
-    lims = max(d2.frequencies[cut2 - 1], max(sig_freq_d1))
+    try:
+        lims = max(d2.frequencies[cut2 - 1], max(sig_freq_d1)) 
+    except:
+        lims = d2.frequencies[cut2 - 1]
     ps.set_xlim(0, lims)
     ps.set_title("Spettro di potenza delle due strutture")
     ps.set_xlabel("Frequenza [Hz]")
-    ps.set_ylabel("Potenza (log)")
+    ps.set_ylabel("Potenza (log$_{10}$)")
     ps.set_yscale("log")
     ps.legend(fontsize=fontsize)
     
@@ -116,21 +115,21 @@ def confront_and_plot(d1: LCR.Datasheet, d2: LCR.Datasheet, n, sigmas, names, ti
     # vede se in d2 c'è limitmask, altrimenti non fa distinzione con upper limit. potrei toglierla sapendo che non c'è possibilita di scelta in questo script ma non si sa mai
     if d2.limitmask is not None:
         notmask = ~d2.limitmask
-        sn.scatter(timedata_d2[d2.limitmask], d2.fluxdata[d2.limitmask], marker="v", label="Upper Limit (mens.)")
+        sn.scatter(timedata_d2[d2.limitmask], d2.fluxdata[d2.limitmask], marker="v", label="Limiti superiori (mens.)")
     else:
         notmask = np.full(d2.timedata.shape, True)
     
     sn.errorbar(timedata_d2[notmask], d2.fluxdata[notmask], d2.sigmadata[notmask], 
-                    fmt=".", elinewidth=1, ecolor="gray", label="Detection (mens.)")
+                    fmt=".", elinewidth=1, ecolor="gray", label="Rilevamenti (mens.)")
     sn.plot(timedata_d2[notmask], d2.fluxdata[notmask], lw=1, color="gray", alpha=.5)
 
     # plot
-    sn.plot(timedata_d1, yy_d1, lw=1, color="darkturquoise", label=f"Sintesi picchi significativi oltre {perc.round(3)} (sett.)%")
-    sn.plot(timedata_d2, yy_d2, lw=1, color="plum", label=f"Sintesi picchi significativi oltre {perc.round(3)}% (mens.)")
+    sn.plot(timedata_d1, yy_d1, lw=1, color="darkturquoise", label=f"Sintesi coefficienti oltre {percentile} % (sett.)")
+    sn.plot(timedata_d2, yy_d2, lw=1, color="plum", label=f"Sintesi coefficienti oltre {percentile} % (mens.)")
 
     sn.set_xlabel(timelabel)
     sn.set_ylabel(d2.nameofdata[1])
-    sn.set_title(f"Plot sintesi dati con picchi significativi oltre {round(perc, 3)}%,\na confronto con la curva di luce dei dati mensili")
+    sn.set_title(f"Plot sintesi dati con coeff. significativi oltre {percentile}%,\na confronto con la curva di luce dei dati mensili")
     sn.legend(fontsize=fontsize)
     
     # show
@@ -139,36 +138,31 @@ def confront_and_plot(d1: LCR.Datasheet, d2: LCR.Datasheet, n, sigmas, names, ti
 
 def do_things(parser):
     args = parser.parse_args()
+    
     if args.dir:
         names = os.listdir(args.filepath)
         paths = [os.path.join(args.filepath,i) for i in names] # qui assumo che ci siano solo due file nella cartella, estendibile a n file anche nella funzione
         paths = paths if "weekly" in names[0] else paths[::-1] # inversione se legge monthly prima di weekly
         names = names if "weekly" in names[0] else names[::-1] # inversione se legge monthly prima di weekly
         data1, data2 = [load_data(i) for i in paths]
-        confront_and_plot(data1, data2, args.shuffles, args.sigmas, names, args.timeformat)
+        dualplot(data1, data2, args.iterations, args.percentile, names, args.timeformat)
     else:
         data = load_data(args.filepath)
-        choice = args.plot
-        
-        if args.percentage is not None:
-            args.sigmas = norm.ppf(args.percentage / 100)
-        
-        analyze_periodicity(data, sigmas=args.sigmas, num_shuffles=args.shuffles)
-        
+        choice = args.show
+                
         if args.timeformat is not None and args.timeformat.lower() in ("met", "mission elapsed time"):
             args.timeformat == "met"
             
-        plot_results(data, choice, args.sigmas, args.timeformat)
+        plot(data, choice, args.percentile, args.iterations, args.timeformat)
         
 
 def main():
     parser = argparse.ArgumentParser(description="Analisi di periodicità delle curve di luce dei Blazar")
     parser.add_argument("filepath", type=str, help="Percorso del file CSV della curva di luce")
     parser.add_argument("-d", "--dir", type=bool, default=False, help="Se è una cartella (True) mette a confronto tutti i file nella cartella")
-    parser.add_argument("-p", "--plot", choices=["all", "data", "spectrum", "analysis"], default="analysis", help="Scelta del tipo di plot")
-    parser.add_argument("-n", "--shuffles", type=int, default=1000, help="Numero di curve di luce sintetiche")
-    parser.add_argument("-s", "--sigmas", type=float, default=3.9, help="Soglia per la significatività del picco in deviazioni")
-    parser.add_argument("-c", "--percentage", type=float, help="Soglia per la significatività del picco in percentuale")
+    parser.add_argument("-s", "--show", choices=["all", "data", "spectrum", "analysis"], default="analysis", help="Scelta del tipo di plot")
+    parser.add_argument("-p", "--percentile", type=float, default=95, help="Soglia di significatività percentile massimi")
+    parser.add_argument("-i", "--iterations", type=int, default=100, help="Numero di shuffle da eseguire")
     parser.add_argument("-t", "--timeformat", choices=["JD", "Julian Date", "MET", "Mission Elapsed Time"], 
                         default="JD", help="Scelta del formato data, Julian Date o MET")
     
