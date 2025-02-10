@@ -1,5 +1,6 @@
 import numpy as np
 import ctypes
+import tensorflow
 
 _lib = np.ctypeslib.load_library("libmycamera", ".")
 
@@ -10,3 +11,4 @@ class myCamera:
     imag = np.array([])
     
     def read_camera(self):
+        buffer = ctypes.create_string_buffer()
