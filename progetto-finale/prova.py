@@ -8,8 +8,9 @@ from scipy.stats import norm
 from time import time
 import os
 import multiprocessing
+from numba import njit
 
-def shuffle_analysis(signal, iterations, percentile):
+def shuffle1(signal, iterations, percentile):
     dummy = signal.copy()
     maxs = np.zeros(iterations) # maxs o maxes?
     
@@ -19,20 +20,12 @@ def shuffle_analysis(signal, iterations, percentile):
     
     treshold = np.percentile(maxs, percentile)
     indexes = np.where(np.abs(fft(signal))**2 > treshold)[0]
-    return {"treshold":treshold, "percentile":percentile, "indexes":indexes}   
-    
+    return {"treshold":treshold, "percentile":percentile, "indexes":indexes}
 
 a = LCR.read_csv("lcr", "J0137/4FGL_J0137.0+4751_weekly_12_27_2024.csv")
 a.convert_to_numeric(inplace=True)
 
 b = a.fluxdata
-c = shuffle_analysis(b, 100, 95)
-print(c)
-
-k = fft(b)
-f = fftfreq(len(k), d=7)
-
-plt.plot(f[:len(b)//2], np.absolute(k[:len(b)//2])**2, c="gray", lw=1)
-plt.hlines(c[0], 0, .05)
-plt.yscale('log')
-plt.show()
+t0 = time()
+c = shuffle1(b, 100, 95)
+t2 = time()
