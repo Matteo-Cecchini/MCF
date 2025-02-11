@@ -52,7 +52,7 @@ Utilizzo (BlazarFluxPlot.py)
 
     Se l'analisi riguarda i dati di una cartella:
 
-        $ python3 BlazarFluxPlot.py <percorso_cartella> -d True
+        $ python3 BlazarFluxPlot.py <percorso_cartella> -d True (oppure 1)
 
     Le altre opzioni del parser sono in comune.
     Opzioni disponibili:

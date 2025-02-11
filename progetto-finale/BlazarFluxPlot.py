@@ -91,13 +91,13 @@ def dualplot(d1: LCR.Datasheet, d2: LCR.Datasheet, shuffles, percentile, names, 
     
     # settimanali
     ps.plot(sig_freq_d1, sig_pows_d1, ".", lw=1, label=f"Picchi sett. oltre {percentile} % ")
-    ps.plot(d1.frequencies[:cut1], np.absolute(d1.coefficients[:cut1])**2, lw=1, color="gray", alpha=.5, label=f"Spettro Potenza {names[0]}")
-    ps.hlines(d1.significativity["treshold"], 0, np.max(d1.frequencies[:cut1]), color="darkturquoise", alpha=.4, label=f"Soglia del {percentile} % sett.")
+    ps.plot(d1.frequencies[:cut1], np.absolute(d1.coefficients[:cut1])**2, lw=1, color="gray", alpha=.5, label=f"Spettro di potenza {names[0]}")
+    ps.hlines(d1.significativity["treshold"], 0, np.max(d1.frequencies[:cut1]), color="darkturquoise", alpha=.4, label=f"Soglia del {percentile}% sett.", linestyles="dashed")
     
     # mensili
     ps.plot(sig_freq_d2, sig_pows_d2, ".", lw=1, label=f"Picchi mens.oltre {percentile} %")
-    ps.plot(d2.frequencies[:cut2], np.absolute(d2.coefficients[:cut2])**2, lw=1, color="wheat", alpha=1, label=f"Spettro Potenza {names[1]}")
-    ps.hlines(d2.significativity["treshold"], 0, np.max(d2.frequencies[:cut2]), color="plum", alpha=.4, label=f"Soglia del {percentile} % mens.", linestyles="dashed")
+    ps.plot(d2.frequencies[:cut2], np.absolute(d2.coefficients[:cut2])**2, lw=1, color="wheat", alpha=1, label=f"Spettro di potenza {names[1]}")
+    ps.hlines(d2.significativity["treshold"], 0, np.max(d2.frequencies[:cut2]), color="plum", alpha=.4, label=f"Soglia del {percentile}% mens.", linestyles="dashed")
     
     # scritte delle fequenze sui dati significativi
     
@@ -186,7 +186,6 @@ def do_things(parser):
             
         plot(data, choice, args.percentile, args.iterations, args.timeformat)
         
-
 def main():
     parser = argparse.ArgumentParser(description="Analisi di periodicità delle curve di luce dei Blazar")
     parser.add_argument("filepath", type=str, help="Percorso del file CSV della curva di luce")

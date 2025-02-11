@@ -3,7 +3,6 @@ import numpy as np
 import ctypes as ct
 import matplotlib.pyplot as plt
 from scipy.fft import fft, ifft, fftfreq
-from scipy.stats import norm
 
 _lib = np.ctypeslib.load_library("prova.so", ".")
 
@@ -371,25 +370,27 @@ class Datasheet:
         coefficients = self.coefficients[:cut]
         powers = np.absolute(coefficients)**2
         
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12,6))
         if see_parts:
             g1 = fig.add_gridspec(1,1, left=.1, right=.45)
             g2 = fig.add_gridspec(2,1, left=.55, right=.9)
             
             re, im = g2.subplots(sharex=True, sharey=True)
             re.plot(frequencies, coefficients.real, color="gray", lw=1)
+            re.plot(frequencies, coefficients.real, ".", label="Parte reale")
+            re.set_ylabel("Parte reale")
+            
             im.plot(frequencies, coefficients.imag, color="gray", lw=1)
-            re.errorbar(frequencies, coefficients.real, 
-                     fmt=".", elinewidth=1, ecolor="gray", label="Parte reale")
-            im.errorbar(frequencies, coefficients.imag, 
-                     fmt=".", elinewidth=1, ecolor="gray", label="Parte immaginaria")
+            im.plot(frequencies, coefficients.imag, ".", label="Parte immaginaria")
             im.set_xlabel("Frequenza [Hz]")
+            im.set_ylabel("Parte immaginaria")
+            
             re.set_title("Parti reale e immaginaria dei coefficienti")
         else:
             g1 = fig.add_gridspec(1,1)
         sp = g1.subplots()
-        sp.plot(frequencies, powers, fmt=".", elinewidth=1, ecolor="gray")
-        sp.plot(frequencies, powers, lw=1, color="gray", alpha=.5)
+        sp.plot(frequencies, powers, ".")
+        sp.plot(frequencies, powers, lw=1, c="gray", alpha=.5)
         sp.set_title("Spettro di potenza dei coefficienti")
         sp.set_xlabel("Frequenza [Hz]")
         sp.set_ylabel("Potenza")
@@ -417,11 +418,11 @@ class Datasheet:
         fig = plt.figure(figsize=(13,6))
         gs = fig.add_gridspec(1,2)
         ps, sn = gs.subplots()
-        ps.plot(sig_freq, sig_pows, ".", lw=1, label=f"picchi con significatività oltre {round(percentile,3)}%")
+        ps.plot(sig_freq, sig_pows, ".", lw=1, label=f"Picchi oltre il {percentile}% dei massimi calcolati")
         ps.plot(self.frequencies[:cut], np.absolute(self.coefficients[:cut])**2, 
                 lw=1, color="gray", alpha=.5, label="tutti i dati")
         ps.hlines(line, 0, np.max(self.frequencies[:cut]), 
-                  color="#1f77b4", alpha=.4, label=fr"Soglia significativa, {shuffles} $\sigma$ $\mul$ {percentile}%")
+                  color="#1f77b4", alpha=.4, label=f"Soglia del {percentile}° percentile per {shuffles} permutazioni")
         
         ps.vlines(sig_freq, ymin=np.zeros(len(indexes)), ymax=sig_pows, color="gray", 
                   linestyles="dashed", alpha=.25)
@@ -441,6 +442,7 @@ class Datasheet:
         ps.set_xlabel("Frequenza [Hz]")
         ps.set_ylabel("Potenza (log$_{10}$)")
         ps.set_yscale("log")
+        ps.legend()
         
         cc = np.zeros(len(self.coefficients), dtype=np.complex128)
         cc[indexes] = self.coefficients[indexes]
