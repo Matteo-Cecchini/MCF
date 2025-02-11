@@ -4,7 +4,7 @@ import ctypes as ct
 import matplotlib.pyplot as plt
 from scipy.fft import fft, ifft, fftfreq
 
-_lib = np.ctypeslib.load_library("prova.so", ".")
+_lib = np.ctypeslib.load_library("float_conv.so", ".")
 
 _lib.float_conv.argtypes = [ct.c_int, ct.POINTER(ct.c_char_p)]
 _lib.float_conv.restype =  ct.POINTER(ct.c_double)
