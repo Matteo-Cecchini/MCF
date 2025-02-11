@@ -8,11 +8,27 @@ import LCRanalysis as LCR
 import os
 
 def load_data(filepath):
+    '''
+    Inizializza un oggetto Datasheet in base al path immesso.
+    '''
     data = LCR.read_csv("lcr", filepath)
     return data
 
 def plot(data: LCR.Datasheet, choice, percentile, shuffles, timeformat):
-    """Genera i grafici della curva di luce e spettro di potenza."""
+    '''
+    Genera il grafico scelto dall'utente in funzione della parola chiave.
+    ---------------
+    Parametri:
+        data: oggetto Datasheet di cui mostrare il grafico.
+        choice: parola chiave scelta dall'utente, le possibili scelte sono ["all", "data", "analysis", "spectrum"].
+        percentile: percentile di significatività scelto per la soglia dell'analisi.
+        shuffles: numero di permutazioni casuali da fare nell'analisi
+        timeformat: sceglie come visualizzare i dati temporali, come Julian Date o MET
+
+    La funzione sfrutta i metodi interni di Datasheet per fare automaticamente il grafico scelto dall'utente.
+    Se viene immesso "all" come choice, vengono generati tutti i grafici possibili ("data", "spectrum", "analysis") in successione.
+    '''
+    data.convert_to_numeric(inplace=True)
     data.FFT(inplace=True)
     data.shuffle_analysis(shuffles=shuffles, percentile=percentile, inplace=True)
     if choice == "analysis":
@@ -27,6 +43,18 @@ def plot(data: LCR.Datasheet, choice, percentile, shuffles, timeformat):
         data.plot_spectrum(see_parts=True)
 
 def dualplot(d1: LCR.Datasheet, d2: LCR.Datasheet, shuffles, percentile, names, timeformat: str = ""):
+    '''
+    Genera il grafico degli spettri di potenza di daati settimanali e mensili con l'evidenza dei coefficienti significativi,
+    e le curve di luce filtrate sui coefficienti significativi a confronto con le curve originali dei segnali (solo la curva mensile, altrimenti
+    il grafico diventa affollato)
+    ---------------
+    Parametri:
+        d1, d2: i due oggetti Datasheet di cui fare il plot. I file csv dei Blazar sono opportunamente messi a coppia settimana-mese, quindi il confronto viene di conseguenza tra dati presi sttimanalmente e mensilmente.
+        shuffles: numero di permutazioni casuali eseguite nell'analisi
+        percentile: percentile di significatività scelto per la soglia dell'analisi
+        names: nomi dei file, vengono scelti con os quando viene immesso il path della cartella
+        timeformat: sceglie come visualizzare i dati temporali, come Julian Date o MET
+    '''
     # Controllo che ci sia tutto in d1
     d1.convert_to_numeric(True, True)
     d1.FFT(True)
@@ -71,13 +99,13 @@ def dualplot(d1: LCR.Datasheet, d2: LCR.Datasheet, shuffles, percentile, names, 
     ps.plot(d2.frequencies[:cut2], np.absolute(d2.coefficients[:cut2])**2, lw=1, color="wheat", alpha=1, label=f"Spettro Potenza {names[1]}")
     ps.hlines(d2.significativity["treshold"], 0, np.max(d2.frequencies[:cut2]), color="plum", alpha=.4, label=f"Soglia del {percentile} % mens.", linestyles="dashed")
     
-    # Linee verticali dei coefficienti oltre la soglia di significatività
-    '''
+    # scritte delle fequenze sui dati significativi
+    
     for i in range(len(indexes_d1)):
         ps.annotate("w {:.2e}".format(sig_freq_d1[i]), xy=(sig_freq_d1[i], sig_pows_d1[i]), xytext=(5, 5), textcoords="offset points", ha="left", va="bottom", fontsize=8, color="black", fontweight='light')
     for i in range(len(indexes_d2)):
         ps.annotate("m {:.2e}".format(sig_freq_d2[i]), xy=(sig_freq_d2[i], sig_pows_d2[i]), xytext=(5, 5), textcoords="offset points", ha="left", va="bottom", fontsize=8, color="black", fontweight='light')
-    '''
+    
     # zoom o su tutto l'array delle potenze FFT dei mensili o fino l'ultima potenza significativa dei settimanali
     try:
         lims = max(d2.frequencies[cut2 - 1], max(sig_freq_d1)) 
@@ -137,6 +165,9 @@ def dualplot(d1: LCR.Datasheet, d2: LCR.Datasheet, shuffles, percentile, names, 
     plt.show()
 
 def do_things(parser):
+    '''
+    In base alla scelta dell'utente genera i risultati di un singolo file csv o di una cartella con dati settimanali e mensili.
+    '''
     args = parser.parse_args()
     
     if args.dir:

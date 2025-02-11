@@ -43,19 +43,54 @@ def to_numeric(arr):
     return res
 
 def shuffle_analysis(signal, shuffles = 100, percentile = 95):
+    '''
+    Funzione per trovare i coefficienti significativi di un segnale temporale confrontando lo spettro di potenza 
+    con i massimi degli spettri di permutazioni casuali del segnale.
+    ---------------
+    Parametri:
+        signal: il segnale di cui fare il test
+        shuffles: numero di permutazioni nel ciclo da fare, di default 100
+        percentile: soglia significativa dei massimi delle permutazioni
+    
+    Return:
+        Un dizionario con le seguenti parole chiave:
+            - "treshold": il float corrispondente al percentile immesso dei masismi degli spettri di potenza delle permutazioni
+            - "percentile": il percentile dei massimi, direttamente dai parametri
+            - "indexes": indici corrispondenti ai coefficienti FFT del segnale che hanno superato il test    
+    '''
     dummy = signal.copy()
     maxs = np.zeros(shuffles) # maxs o maxes?
     
+    # utilizzare map() non comporta ottimizzazioni
     for i in range(shuffles):
         dummy = np.random.permutation(signal)
         maxs[i] = max(np.abs(fft(dummy)[1:])**2) # il primo coefficiente è l'offset
     
+    # il percentile ha significato a prescindere dalla distribuzione, i masismi non sono distribuiti normalmente
     treshold = np.percentile(maxs, percentile)
     indexes = np.where(np.abs(fft(signal))**2 > treshold)[0]
     return {"treshold":treshold, "percentile":percentile, "indexes":indexes} 
 
 
 class Datasheet:
+    '''
+    Classe pensata per l'analisi di segnali in funzione del tempo, creata per i file csv del Light Curve Repository.
+    ---------------
+    Attributi:
+        timedata: array dei dati temporali
+        fluxdata: array dei dati in funzione del tempo, per i dati dell'LCR si tratta o di flussi di fotoni o flussi di energia
+        
+        frequencies: array delle frequenze trovate con scipy.fft.fftfreq
+        coefficients: array dei coefficienti FFT di fluxdata
+        significativity: dizionario con informazioni dei coefficienti significativi, sfrutta la faunzione shuffle_analysis
+        
+        limitmask: array con la stessa lunghezza di fluxdata con le informazioni dei dati non numerici di fluxdata. Nei dati LCR serve per tenere conto dei limit superiori nel plot.
+        sigmadata: array con le incertezze di sigmadata, per il plot dei dati.
+        
+        nameofdata: lista con gli eventuali nomi delle colonne prese dal csv dell'inizializzazione
+        csvformat: eventuali informazioni per tenere conto della struttura o provenienza del csv usato per l'inizializzazione. Per i dati LCR,
+                   serve per poter effettuare la conversione da Julian Date a MET        
+    '''
     # array presi dal csv di analisi
     timedata = np.array([])
     fluxdata = np.array([])
@@ -75,15 +110,15 @@ class Datasheet:
         Inizializza un oggetto contenente dati temporali, flussi e sigma associati.
         ---------------
         Parametri:
-            - td: array-like con dati temporali; se un array bidimensionale, la prima riga rappresenta i tempi,
+            td: array-like con dati temporali; se un array bidimensionale, la prima riga rappresenta i tempi,
                   la seconda i flussi e la terza (se presente) le incertezze (sigma).
-            - yd: array-like con i dati in funzione del tempo. Se fornito, deve essere di dimensione compatibile 
+            yd: array-like con i dati in funzione del tempo. Se fornito, deve essere di dimensione compatibile 
                   con "td".
-            - sigma: array-like con le incertezze di "yd". Se fornito, deve avere la stessa forma di "yd". 
-                     Se non fornito o di forma non compatibile, verrà utilizzato un array di `np.nan`.
-            - names: Nomi personalizzati per i dati temporali, i flussi e le incertezze. 
+            sigma: array-like con le incertezze di "yd". Se fornito, deve avere la stessa forma di "yd". 
+                     Se non fornito o di forma non compatibile, verrà utilizzato un array di "np.nan".
+            names: Nomi personalizzati per i dati temporali, i flussi e le incertezze. 
                      Default è ["Time", "Data", "Sigma"].
-            - csvformat: Parametri aggiuntivi per la gestione del formato CSV.
+            csvformat: Parametri aggiuntivi per la gestione del formato CSV.
 
         L'inizializzazione tenta la conversione diretta dei dati in array NumPy di tipo float64 e verifica la compatibilità dimensionale. 
         Se i dati temporali sono forniti come un array bidimensionale, la prima riga è considerata i tempi, la seconda i flussi e la terza (se presente) le incertezze. In caso di formati non compatibili, viene sollevata un'eccezione.
@@ -163,7 +198,7 @@ class Datasheet:
     def dtypes(self):
         '''
         Metodo di proprietà della classe che ha come return un dizionario con i tipi di elementi per ogni "colonna"
-        presenta nella classe al momento della chiamata.
+        presente nella classe al momento della chiamata.
         '''
         # si chiama il tipo del primo elemento di ogni array perché usare .dtype da indistintamente <class 'object'>
         # finché non si danno array con elementi di tipo disuniforme non da problemi (si potrebbe implementare nell'inizializzazione)
@@ -184,14 +219,14 @@ class Datasheet:
         Converte i dati dell'oggetto in valori numerici, gestendo eventuali valori non numerici.
         ---------------
         Parametri:
-            - inplace: se True la conversione avviene direttamente sull'oggetto corrente, 
+            inplace: se True la conversione avviene direttamente sull'oggetto corrente, 
                    se False viene restituita una copia dell'oggetto con i dati convertiti. 
                    Di default è False.
-            - is_limit: Se True, identifica i limiti superiori nei dati di flusso come valori NaN, utilizzabili per il masking o per il plot. Default è True.
+            is_limit: Se True, identifica i limiti superiori nei dati di flusso come valori NaN, utilizzabili per il masking o per il plot. Default è True.
 
         Return:
-            - None: se "inplace" è True, non viene restituito nulla.
-            - Datasheet: una nuova copia dell'oggetto con i dati numerici, se "inplace" è False.
+            None: se "inplace" è True, non viene restituito nulla.
+            Datasheet: una nuova copia dell'oggetto con i dati numerici, se "inplace" è False.
 
         Descrizione:
         Il metodo converte le colonne di dati (tempo, flusso e incertezze) in valori numerici, 
@@ -203,7 +238,8 @@ class Datasheet:
         else:
             df = self
         # indici dei limiti superiori per il plot bello
-        df.limitmask = np.isnan(pd.to_numeric(df.fluxdata, errors="coerce")) if is_limit else None
+        if is_limit:
+            df.limitmask = np.isnan(pd.to_numeric(df.fluxdata, errors="coerce"))
         # converte le colonne
         df.timedata = to_numeric(df.timedata)
         df.fluxdata = to_numeric(df.fluxdata)
@@ -219,12 +255,12 @@ class Datasheet:
         Esegue la trasformata di Fourier discreta (FFT) sui dati.
 
         Parametri:
-            - inplace: se True la trasformata di Fourier viene applicata direttamente sull'oggetto corrente,
+            inplace: se True la trasformata di Fourier viene applicata direttamente sull'oggetto corrente,
                        se False viene restituita una copia dell'oggetto con i risultati della FFT. 
                        Di default è False.
 
         Restituisce:
-            - Datasheet: Una copia dell'oggetto con i risultati della FFT se `inplace` è False, altrimenti non restituisce nulla e modifica direttamente l'oggetto corrente.
+            Datasheet: Una copia dell'oggetto con i risultati della FFT se `inplace` è False, altrimenti non restituisce nulla e modifica direttamente l'oggetto corrente.
 
         Descrizione:
         Il metodo applica la trasformata di Fourier discreta (FFT) ai dati ("fluxdata") e alle incertezze ("sigmadata"). 
@@ -282,6 +318,12 @@ class Datasheet:
             return df
     
     def plot_data(self, timeformat: str = None):
+        '''
+        Grafica i dati in funzione del tempo, con le incertezze se immesse.
+        ---------------
+        Parametri:
+            timeformat: parola chiave per la conversione dei dati temporali da Julian Date a MET (o altri formati se creata la parola chiave)
+        '''
         if any(i != np.float64 for i in self.dtypes.values()):
             try:
                 self.convert_to_numeric(inplace=True)
@@ -315,6 +357,12 @@ class Datasheet:
         plt.show()
 
     def plot_spectrum(self, see_parts = False):
+        '''
+        Grafica lo spettro di potenza dei dati
+        ---------------
+        Parametri:
+            see_parts: grafica parte reale e immaginaria dei coefficienti, se True.
+        '''
         if self.frequencies.size == 0 or self.coefficients.size == 0:
             self.FFT(inplace=True)
         
@@ -348,6 +396,14 @@ class Datasheet:
         plt.show()    
 
     def plot_analysis(self, shuffles = 100, percentile = 95, timeformat: str = ""):
+        '''
+        Grafica lo spettro di potenza dei dati mettendo in evidenza i coefficienti significativi, insiame al plto dei dati con la sintesi dei coefficienti filtrati.
+        ---------------
+        Parametri:
+            shuffles: numero di permutazioni nell'analisi
+            percentile: soglia percentuale di significatività
+            tiemformat: formato della data (se ritrovato nelle parole chiave) ["MET"]
+        '''
         if len(self.significativity) == 0:
             self.shuffle_analysis(shuffles=shuffles, percentile=percentile, inplace=True)
         if self.frequencies.size == 0:
@@ -365,7 +421,7 @@ class Datasheet:
         ps.plot(self.frequencies[:cut], np.absolute(self.coefficients[:cut])**2, 
                 lw=1, color="gray", alpha=.5, label="tutti i dati")
         ps.hlines(line, 0, np.max(self.frequencies[:cut]), 
-                  color="#1f77b4", alpha=.4, label=f"Soglia significativa, {shuffles} $\sigma$ $\mul$ {percentile}%")
+                  color="#1f77b4", alpha=.4, label=fr"Soglia significativa, {shuffles} $\sigma$ $\mul$ {percentile}%")
         
         ps.vlines(sig_freq, ymin=np.zeros(len(indexes)), ymax=sig_pows, color="gray", 
                   linestyles="dashed", alpha=.25)
@@ -418,7 +474,9 @@ class Datasheet:
 
 def read_csv(from_data: str|int, path: str):
     '''
-    Funzione analoga al read_csv() di pandas, ma ritorna un Datasheet.
+    Funzione analoga al read_csv() di pandas, ma inizializza un Datasheet con le colonne selezionate dal csv.
+    Parametri:
+        from_data: se una lista di interi, prende le colonne dei primi tre interi immessi. Se è una stringa e la stringa immesa è una parola chiave, inizializza un Datasheet formattato come preimpostato dalla parola chiave.
     '''
     df = pd.read_csv(path)
     if isinstance(from_data, int):
