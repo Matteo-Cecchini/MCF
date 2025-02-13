@@ -62,7 +62,7 @@ def shuffle_analysis(signal, shuffles = 100, percentile = 95):
     
     # utilizzare map() non comporta ottimizzazioni
     for i in range(shuffles):
-        dummy = np.random.permutation(signal)
+        np.random.shuffle(dummy)
         maxs[i] = max(np.abs(fft(dummy)[1:])**2) # il primo coefficiente è l'offset
     
     # il percentile ha significato a prescindere dalla distribuzione, i masismi non sono distribuiti normalmente
