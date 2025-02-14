@@ -70,7 +70,6 @@ def shuffle_analysis(signal, shuffles = 100, percentile = 95):
     indexes = np.where(np.abs(fft(signal))**2 > treshold)[0]
     return {"treshold":treshold, "percentile":percentile, "indexes":indexes} 
 
-
 class Datasheet:
     '''
     Classe pensata per l'analisi di segnali in funzione del tempo, creata per i file csv del Light Curve Repository.
