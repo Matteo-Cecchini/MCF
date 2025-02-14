@@ -381,7 +381,7 @@ class Datasheet:
             
             im.plot(frequencies, coefficients.imag, color="gray", lw=1)
             im.plot(frequencies, coefficients.imag, ".", label="Parte immaginaria")
-            im.set_xlabel("Frequenza [Hz]")
+            im.set_xlabel("Frequenza [d$^{-1}$]")
             im.set_ylabel("Parte immaginaria")
             
             re.set_title("Parti reale e immaginaria dei coefficienti")
@@ -391,7 +391,7 @@ class Datasheet:
         sp.plot(frequencies, powers, ".")
         sp.plot(frequencies, powers, lw=1, c="gray", alpha=.5)
         sp.set_title("Spettro di potenza dei coefficienti")
-        sp.set_xlabel("Frequenza [Hz]")
+        sp.set_xlabel("Frequenza [d$^{-1}$]")
         sp.set_ylabel("Potenza")
         plt.show()    
 
@@ -438,7 +438,7 @@ class Datasheet:
             lims = self.frequencies[cut - 1]
         ps.set_xlim(0, lims)
         ps.set_title("Spettro di potenza dei coefficienti")
-        ps.set_xlabel("Frequenza [Hz]")
+        ps.set_xlabel("Frequenza [d$^{-1}$]")
         ps.set_ylabel("Potenza (log$_{10}$)")
         ps.set_yscale("log")
         ps.legend()

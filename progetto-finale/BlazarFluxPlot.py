@@ -113,7 +113,7 @@ def dualplot(d1: LCR.Datasheet, d2: LCR.Datasheet, shuffles, percentile, names, 
         lims = d2.frequencies[cut2 - 1]
     ps.set_xlim(0, lims)
     ps.set_title("Spettro di potenza delle due strutture")
-    ps.set_xlabel("Frequenza [Hz]")
+    ps.set_xlabel("Frequenza [d$^{-1}$]")
     ps.set_ylabel("Potenza (log$_{10}$)")
     ps.set_yscale("log")
     ps.legend(fontsize=fontsize)
