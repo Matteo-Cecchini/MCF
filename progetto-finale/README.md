@@ -84,12 +84,9 @@ Output
 Approfondimenti:
 
     Datasheet:
-        La classe Datasheet in LCRanalysis.py è pensata per le analisi delle curve di luce del Light Curve Repository, ma 
-        strutturata perché possa essere flessibile.
+        La classe Datasheet in LCRanalysis.py è pensata per le analisi delle curve di luce del Light Curve Repository, ma strutturata perché possa essere flessibile.
 
-        Nella lettura dei csv è possibile immettere parole chiave che rimandano all'origine dei csv stessi, cosicché il Datasheet
-        venga inizializzato con funzionalità pertinenti. Tutto questo a patto che l'origine del csv sia implementata nelle funzioni di lettura del csv
-        e nelle funzioni di plot interne alla classe (ad ora c'è solo la parola chiave "lcr").
+        Nella lettura dei csv è possibile immettere parole chiave che rimandano all'origine dei csv stessi, cosicché il Datasheet venga inizializzato con funzionalità pertinenti. Tutto questo a patto che l'origine del csv sia implementata nelle funzioni di lettura del csv e nelle funzioni di plot interne alla classe (ad ora c'è solo la parola chiave "lcr").
 
     Test statistico:
         Il testi che effettua la classe Datasheet e la funzione shuffle_analysis in LCRanalysis.py funziona nel modo seguente:
@@ -104,12 +101,11 @@ Approfondimenti:
 
         Nel caso di un segnale afflitto da forti fenomeni stocastici, come la curva di luce di un Blazar,
         non è molto utile cercare semplicemente i picchi dello spettro di potenza, poiché la presenza di rumore
-        può rendere difficile l’individuazione di reali periodicità. 
+        può rendere difficile l’individuazione di periodicità reali. 
         
-        Mescolando (shuffling) il segnale si distruggono tutte le sue potenziali periodicità, trasformandolo in 
+        Mescolando il segnale si distruggono tutte le sue potenziali periodicità, trasformandolo in 
         qualcosa che può essere assimilato a un rumore puro. Questo rumore nel suo spettro di potenza presenta 
-        comunque un massimo, che corrisponde alla frequenza più ricorrente nel dominio del tempo dovuta alla 
-        distribuzione casuale delle componenti.
+        comunque un massimo, che corrisponde alla frequenza più ricorrente nel dominio del tempo di una       distribuzione casuale.
 
         Permutando più volte il segnale originale in maniera casuale e calcolando i massimi nei rispettivi 
         spettri di potenza, si ottiene una distribuzione statistica di riferimento per il rumore del segnale. 
