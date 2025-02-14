@@ -2,14 +2,13 @@ Progetto: Analisi delle Curve di Luce dei Blazar
 
 Descrizione
 
-    Questo progetto fornisce strumenti per analizzare le curve di luce dei Blazar, utilizzando tecniche di analisi spettrale e trasformata di Fourier (FFT).
-    Il codice permette di stimare periodicità e segnali significativi attraverso un test statistico basato su successive permutazioni casuali del segnale da analizzare.
+    Questo progetto fornisce strumenti per analizzare le curve di luce dei Blazar, tramite trasmormata di Fourier (FFT) e un test statistico basato sulla generazione di curve sintetiche di luce.
+    Il codice permette di stimare periodicità e segnali significativi confrontando lo spettro di potenza del segnale originale con una soglia di significatività (scelta dall'utente) dei massimi spettrali di successive permutazioni casuali del segnale da analizzare.
 
 Struttura del Progetto
 
     BlazarFluxPlot.py:
-        Codice adibito all'utilizzo rapido per l'analisi e la visualizzazione dei risultati del o dei segnali che si vogliono analizzare,
-        all'interno di file csv.
+        Codice adibito all'utilizzo rapido per l'analisi e la visualizzazione dei risultati del o dei segnali che si vogliono analizzare all'interno di file csv.
 
         Funzione load_data(filepath): Carica un file CSV e lo converte in un oggetto Datasheet.
         Funzione plot(data, choice, percentile, shuffles, timeformat): Genera diversi tipi di grafici basati sui dati forniti.
@@ -42,8 +41,7 @@ Requisiti
 
 Utilizzo (BlazarFluxPlot.py)
 
-    BlazarFluxPlot.py è strutturato partendo dalla necessità di dover analizzare file singoli o coppie di file contenenti 
-    dati di flusso di Blazar; di conseguenza il codice è orientato all'analisi singola dei file o del loro confronto a coppie.
+    BlazarFluxPlot.py è strutturato partendo dalla necessità di dover analizzare file singoli o coppie di file contenenti dati di flusso di Blazar; di conseguenza il codice è orientato all'analisi di singoli file o della cartella contente le coppie di file (su presa dati settimanale-mensile dello stesso oggetto celeste).
     Per l'analisi "a coppia" l'approccio è quello di utilizzare come riferimento da terminale la cartella con entrambi i file.
     
     Se l'analisi riguarda un singolo file:
@@ -64,6 +62,7 @@ Utilizzo (BlazarFluxPlot.py)
         -i, --iterations : numero di shuffle per l'analisi (default: 100).
 
         -t, --timeformat : formato del tempo (JD o MET).
+
 
 Output
 
